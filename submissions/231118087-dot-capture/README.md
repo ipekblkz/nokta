@@ -1,13 +1,13 @@
 # Nokta — Dot Capture & Enrich
 
-**Öğrenci:** İpek Balkız · 231118087
+**Öğrenci:** İpek Balkız • 231118087
 **Track:** A — Dot Capture & Enrich
 
 ---
 
 ## Demo
 
-> 📱 **APK:** `app-release.apk` (bu klasörde)
+> **APK:** `app-release.apk` (bu klasörde)
 
 ---
 
@@ -27,70 +27,32 @@ Diğer track'lere kıyasla daha net bir kullanıcı akışı ve daha az belirsiz
 2. Claude AI 4 engineering sorusu sorar (problem, user, scope, constraint)
 3. Kullanıcı cevaplar
 4. Claude tek sayfalık ürün spesifikasyonu üretir
+5. **👤 Uzman Desteği:** "Uzman Görüşü Al" butonuna basarak spec WhatsApp üzerinden gerçek bir uzmana iletilir
 
 ---
 
-## Kurulum & Çalıştırma
+## 👤 İnsan (Uzman) Desteği
 
-```bash
-cd app
-npm install
-npx react-native run-android
-```
+Spec oluşturulduktan sonra **"Uzman Görüşü Al"** butonu aktif olur.
+Butona basıldığında fikir ve spec otomatik olarak WhatsApp mesajına dönüştürülür,
+kullanıcı istediği uzmana direkt gönderebilir.
 
-**Gereksinimler:**
-- Node.js 18+
-- React Native CLI
-- Android SDK / emülatör veya fiziksel cihaz
-
-**Not:** Bu proje React Native CLI ile geliştirilmiştir (Expo değil).
+> AI spec üretir → İnsan uzman değerlendirir → Gerçek geri bildirim alınır
+5. **👤 İnsan Desteği:** "UZMANA GÖNDER" butonuna basarak spec WhatsApp üzerinden gerçek bir uzmana iletilir
 
 ---
 
-## APK Build
+## İnsan Desteği Özelliği
 
-```bash
-cd app/android
-./gradlew assembleRelease
-# APK: android/app/build/outputs/apk/release/app-release.apk
-```
-
----
-
-## Kullanılan AI Araçlar
-
-| Araç | Kullanım |
-|------|----------|
-| Claude (claude.ai) | Uygulama kodu üretimi, spec yazımı |
-| Anthropic API | Runtime — soru üretme + spec oluşturma |
+Spec oluşturulduktan sonra **"UZMANA GÖNDER"** butonu aktif olur.
+Butona basıldığında fikir ve spec otomatik olarak WhatsApp mesajına dönüştürülür,
+kullanıcı istediği uzmana direkt gönderebilir.
 
 ---
 
 ## Decision Log
 
-| Karar | Gerekçe |
-|-------|---------|
-| Track A seçimi | En net akış, NOKTA tezini doğrudan implemente ediyor |
-| React Native CLI (Expo değil) | Daha önce CLI deneyimi var, APK build daha kolay |
-| 4 soru (3-5 arası) | 3 az geldi, 5 uzun hissettiriyor — 4 ideal |
-| Dark tema | NOKTA branding ile uyumlu |
-| Claude claude-sonnet-4-20250514 | En güncel, kaliteli soru ve spec üretiyor |
-
----
-
-## Dosya Yapısı
-
-```
-231118087-dot-capture/
-├── README.md          ← bu dosya
-├── idea.md            ← Track A fikir dosyası
-├── app/               ← React Native CLI projesi
-│   ├── App.tsx        ← ana uygulama
-│   ├── package.json
-│   └── ...
-└── app-release.apk    ← Android APK
-```
-
----
-
-*NOKTA · NAIM Ecosystem · Track A · 231118087*
+- Track A seçtim çünkü fikir üretme sürecini AI ile desteklemek istedim
+- React Native CLI kullandım (Expo yerine)
+- Anthropic Claude API entegrasyonu ile sorular ve spec üretimi yapıldı
+- İnsan desteği için WhatsApp deep link tercih edildi — ekstra kurulum gerektirmiyor
