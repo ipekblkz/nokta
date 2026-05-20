@@ -1,6 +1,5 @@
-
 import { AppRegistry } from 'react-native';
-import DotCapture from './DotCapture/App'; // <- DotCapture klasörünü ekledik
+import App from './submissions/231118087-dot-capture/DotCapture/App';
 import { name as appName } from './app.json';
 
-AppRegistry.registerComponent(appName, () => DotCapture);
+AppRegistry.registerComponent(appName, () => App);
