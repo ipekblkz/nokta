@@ -15,7 +15,7 @@ interface QA { question: string; answer: string; }
 interface ChatMessage { role: 'user' | 'assistant'; content: string; isStuckAlert?: boolean; }
 
 // ─── HuggingFace API ──────────────────────────────────────────────────────────
-const HF_TOKEN = "";
+const HF_TOKEN = process.env.HF_TOKEN;
 const HF_MODEL = "mistralai/Mistral-7B-Instruct-v0.3";
 const HF_URL = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
 

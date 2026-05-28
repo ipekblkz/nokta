@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   Modal, ScrollView, TextInput, Alert,
+  Animated, PanResponder, Dimensions,
 } from 'react-native';
 
 interface AuditNote {
@@ -18,11 +19,39 @@ interface Props {
   idea?: string;
 }
 
+const { width: SW, height: SH } = Dimensions.get('window');
+
 export default function AuditWidget({ currentPhase = '', spec = '', idea = '' }: Props) {
   const [notes, setNotes] = useState<AuditNote[]>([]);
   const [showList, setShowList] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [noteText, setNoteText] = useState('');
+  const [fabPos] = useState(new Animated.ValueXY({ x: SW - 70, y: SH - 180 }));
+  const isDragging = useRef(false);
+  const lastPos = useRef({ x: SW - 70, y: SH - 180 });
+
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_, gs) =>
+      Math.abs(gs.dx) > 5 || Math.abs(gs.dy) > 5,
+    onPanResponderGrant: () => { isDragging.current = false; },
+    onPanResponderMove: (_, gs) => {
+      isDragging.current = true;
+      fabPos.setValue({
+        x: Math.max(0, Math.min(SW - 56, lastPos.current.x + gs.dx)),
+        y: Math.max(0, Math.min(SH - 56, lastPos.current.y + gs.dy)),
+      });
+    },
+    onPanResponderRelease: (_, gs) => {
+      lastPos.current = {
+        x: Math.max(0, Math.min(SW - 56, lastPos.current.x + gs.dx)),
+        y: Math.max(0, Math.min(SH - 56, lastPos.current.y + gs.dy)),
+      };
+      if (!isDragging.current) {
+        setShowAdd(true);
+      }
+    },
+  });
 
   const addNote = () => {
     if (!noteText.trim()) return;
@@ -50,7 +79,10 @@ export default function AuditWidget({ currentPhase = '', spec = '', idea = '' }:
   };
 
   const exportMarkdown = () => {
-    if (notes.length === 0) { Alert.alert('Boş', 'Henüz not yok.'); return; }
+    if (notes.length === 0) {
+      Alert.alert('Boş', 'Henüz not yok.');
+      return;
+    }
     const open = notes.filter(n => n.status === 'open').length;
     const fixed = notes.filter(n => n.status === 'fixed').length;
     let md = `# Bug Raporu — DotCapture\n\n`;
@@ -60,27 +92,36 @@ export default function AuditWidget({ currentPhase = '', spec = '', idea = '' }:
     md += `---\n\n`;
     notes.forEach((n, i) => {
       md += `## ${n.status === 'open' ? '🔴' : '✅'} #${i + 1} — ${n.note}\n\n`;
-      md += `- **Ekran:** ${n.screen}\n- **Durum:** ${n.status === 'open' ? 'Açık' : 'Düzeltildi'}\n\n---\n\n`;
+      md += `- **Ekran:** ${n.screen}\n`;
+      md += `- **Durum:** ${n.status === 'open' ? 'Açık' : 'Düzeltildi'}\n`;
+      md += `- **Zaman:** ${new Date(n.timestamp).toLocaleString('tr-TR')}\n\n`;
+      md += `---\n\n`;
     });
     Alert.alert('📋 Markdown Rapor', md.substring(0, 600) + (md.length > 600 ? '\n...' : ''));
   };
 
   return (
     <>
-      {/* FAB — sabit sağ üst */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => setShowAdd(true)}
-        onLongPress={() => setShowList(true)}
-        delayLongPress={400}
+      {/* FAB */}
+      <Animated.View
+        style={[styles.fab, { transform: fabPos.getTranslateTransform() }]}
+        {...panResponder.panHandlers}
       >
-        <Text style={styles.fabIcon}>🐛</Text>
-        {notes.filter(n => n.status === 'open').length > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{notes.filter(n => n.status === 'open').length}</Text>
-          </View>
-        )}
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.fabInner}
+          onLongPress={() => setShowList(true)}
+          delayLongPress={400}
+        >
+          <Text style={styles.fabIcon}>🐛</Text>
+          {notes.filter(n => n.status === 'open').length > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {notes.filter(n => n.status === 'open').length}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
 
       {/* Not Ekle Modal */}
       <Modal visible={showAdd} transparent animationType="slide">
@@ -98,10 +139,17 @@ export default function AuditWidget({ currentPhase = '', spec = '', idea = '' }:
               autoFocus
             />
             <View style={styles.modalBtns}>
-              <TouchableOpacity style={styles.modalBtnCancel} onPress={() => { setShowAdd(false); setNoteText(''); }}>
+              <TouchableOpacity
+                style={styles.modalBtnCancel}
+                onPress={() => { setShowAdd(false); setNoteText(''); }}
+              >
                 <Text style={styles.modalBtnCancelText}>İptal</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalBtnSave, !noteText.trim() && styles.btnDisabled]} onPress={addNote} disabled={!noteText.trim()}>
+              <TouchableOpacity
+                style={[styles.modalBtnSave, !noteText.trim() && styles.btnDisabled]}
+                onPress={addNote}
+                disabled={!noteText.trim()}
+              >
                 <Text style={styles.modalBtnSaveText}>Kaydet</Text>
               </TouchableOpacity>
             </View>
@@ -147,7 +195,10 @@ export default function AuditWidget({ currentPhase = '', spec = '', idea = '' }:
               <TouchableOpacity style={styles.exportBtn} onPress={exportMarkdown}>
                 <Text style={styles.exportBtnText}>📋 Markdown Export</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.addBtn} onPress={() => { setShowList(false); setShowAdd(true); }}>
+              <TouchableOpacity
+                style={styles.addBtn}
+                onPress={() => { setShowList(false); setShowAdd(true); }}
+              >
                 <Text style={styles.addBtnText}>+ Not Ekle</Text>
               </TouchableOpacity>
             </View>
@@ -159,45 +210,67 @@ export default function AuditWidget({ currentPhase = '', spec = '', idea = '' }:
 }
 
 const styles = StyleSheet.create({
-  fab: {
-    position: 'absolute',
-    zIndex: 999,
-    top: 60,
-    right: 16,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+  // FAB
+  fab: { position: 'absolute', zIndex: 999 },
+  fabInner: {
+    width: 52, height: 52, borderRadius: 26,
     backgroundColor: '#4caf50',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
     elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25, shadowRadius: 4,
   },
   fabIcon: { fontSize: 22 },
-  badge: { position: 'absolute', top: -4, right: -4, backgroundColor: '#ff5252', borderRadius: 10, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
+  badge: {
+    position: 'absolute', top: -4, right: -4,
+    backgroundColor: '#ff5252', borderRadius: 10,
+    minWidth: 18, height: 18,
+    alignItems: 'center', justifyContent: 'center',
+  },
   badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+
+  // Not Ekle Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modalBox: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24 },
+  modalBox: {
+    backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    padding: 24,
+  },
   modalTitle: { color: '#2d6a4f', fontSize: 16, fontWeight: '800', marginBottom: 8 },
   modalScreen: { color: '#888', fontSize: 12, marginBottom: 16 },
-  modalInput: { color: '#333', fontSize: 15, minHeight: 80, borderWidth: 1, borderColor: '#d0e8d0', borderRadius: 10, padding: 12, textAlignVertical: 'top', marginBottom: 16, backgroundColor: '#f6fff6' },
+  modalInput: {
+    color: '#333', fontSize: 15, minHeight: 80,
+    borderWidth: 1, borderColor: '#d0e8d0', borderRadius: 10,
+    padding: 12, textAlignVertical: 'top', marginBottom: 16,
+    backgroundColor: '#f6fff6',
+  },
   modalBtns: { flexDirection: 'row', gap: 12 },
-  modalBtnCancel: { flex: 1, borderWidth: 1, borderColor: '#d0e8d0', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
+  modalBtnCancel: {
+    flex: 1, borderWidth: 1, borderColor: '#d0e8d0',
+    borderRadius: 10, paddingVertical: 14, alignItems: 'center',
+  },
   modalBtnCancelText: { color: '#888', fontWeight: '700' },
-  modalBtnSave: { flex: 1, backgroundColor: '#4caf50', borderRadius: 10, paddingVertical: 14, alignItems: 'center' },
+  modalBtnSave: {
+    flex: 1, backgroundColor: '#4caf50',
+    borderRadius: 10, paddingVertical: 14, alignItems: 'center',
+  },
   modalBtnSaveText: { color: '#fff', fontWeight: '800' },
   btnDisabled: { backgroundColor: '#c8e6c9' },
+
+  // Not Listesi Modal
   listOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   listBox: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%' },
-  listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#e8f5e9' },
+  listHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: 20, borderBottomWidth: 1, borderBottomColor: '#e8f5e9',
+  },
   listTitle: { color: '#2d6a4f', fontSize: 16, fontWeight: '800' },
   listClose: { color: '#aaa', fontSize: 18 },
   listScroll: { maxHeight: 400 },
   emptyText: { color: '#aaa', textAlign: 'center', padding: 40 },
-  noteCard: { margin: 12, padding: 14, backgroundColor: '#f6fff6', borderRadius: 10, borderWidth: 1, borderColor: '#d0e8d0' },
+  noteCard: {
+    margin: 12, padding: 14, backgroundColor: '#f6fff6',
+    borderRadius: 10, borderWidth: 1, borderColor: '#d0e8d0',
+  },
   noteHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   noteStatus: { fontSize: 14 },
   noteScreen: { color: '#888', fontSize: 11, flex: 1 },
@@ -206,9 +279,18 @@ const styles = StyleSheet.create({
   noteActions: { flexDirection: 'row', gap: 12 },
   noteBtn: { paddingVertical: 4 },
   noteBtnText: { color: '#4caf50', fontSize: 12, fontWeight: '700' },
-  listFooter: { flexDirection: 'row', gap: 12, padding: 16, borderTopWidth: 1, borderTopColor: '#e8f5e9' },
-  exportBtn: { flex: 1, backgroundColor: '#e8f5e9', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  listFooter: {
+    flexDirection: 'row', gap: 12, padding: 16,
+    borderTopWidth: 1, borderTopColor: '#e8f5e9',
+  },
+  exportBtn: {
+    flex: 1, backgroundColor: '#e8f5e9',
+    borderRadius: 10, paddingVertical: 12, alignItems: 'center',
+  },
   exportBtnText: { color: '#2d6a4f', fontWeight: '700', fontSize: 12 },
-  addBtn: { flex: 1, backgroundColor: '#4caf50', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  addBtn: {
+    flex: 1, backgroundColor: '#4caf50',
+    borderRadius: 10, paddingVertical: 12, alignItems: 'center',
+  },
   addBtnText: { color: '#fff', fontWeight: '800', fontSize: 12 },
 });
